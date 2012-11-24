@@ -4,12 +4,28 @@
 //
 // For more on phantomjs, visit www.phantomjs.org.
 
+var system = require('system');
+
 var RunAllAutoTests = function(done_callback) {
 
 var page = require('webpage').create();
 
 // NOTE: Cannot include '#' or '?' in this URL.
 var url = 'auto_tests/misc/local.html';
+
+var verbose = false;
+if (system.args.length > 1) {
+  for (var idx = 0 ; idx < system.args.length ; idx++) {
+    var arg = system.args[idx];
+    if (arg == "--verbose") {
+      verbose = true;
+    }
+    if (arg == "--help") {
+      console.log("Usage: " + system.args[0] + " [--verbose ] [--help]");
+      phantom.exit();
+    }
+  }
+}
 
 // NOTE: changing the line below to this:
 // page.open(url, function(status)) {
@@ -39,7 +55,7 @@ page.open(url, function(status) {
     } else if (msg.substr(0, 'Running'.length) == 'Running') {
       loggingOn = false;
     }
-    if (loggingOn) console.log(msg);
+    if (loggingOn || verbose) console.log(msg);
   };
 
   page.onError = function (msg, trace) {
