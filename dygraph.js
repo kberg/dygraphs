@@ -3362,6 +3362,10 @@ Dygraph.prototype.start_ = function() {
     // must be a DataTable from gviz.
     this.parseDataTable_(data);
     this.predraw_();
+  } else if (typeof data == 'object' && typeof data.start == 'function') {
+    // This is a loader.
+    var self = this;
+    data.start(this, function(arry) { self.rawData_ = arry; self.predraw_() });
   } else if (typeof data == 'string') {
     // Heuristic: a newline means it's CSV data. Otherwise it's an URL.
     var line_delimiter = Dygraph.detectLineDelimiter(data);
