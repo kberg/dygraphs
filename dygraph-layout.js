@@ -255,7 +255,7 @@ DygraphLayout.prototype._evaluateLineCharts = function() {
  * all values were type number, with few edge cases, none of which were strings.
  */
 DygraphLayout.parseFloat_ = function(val) {
-  // parseFloat(null) is NaN
+  // parseFloat(null) returns NaN
   if (val === null) {
     return NaN;
   }
