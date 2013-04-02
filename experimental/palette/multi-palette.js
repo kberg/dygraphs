@@ -37,7 +37,7 @@ MultiPalette.optionSetValues = {
   "global": "global",
   "x": "x axis",
   "y": "y axis",
-  "y2": "y2 axis",  
+  "y2": "y2 axis"
 };
 
 MultiPalette.prototype.create = function(parentElement) {

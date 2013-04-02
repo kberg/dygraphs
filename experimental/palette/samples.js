@@ -115,7 +115,7 @@ Samples.data = [
       width: 640,
       height: 480,
       title: 'Many Points',
-      axisLineColor: 'white',
+      axisLineColor: 'white'
     }
   },
 

@@ -76,7 +76,7 @@ var opts = {
     scope : [ "x", "y", "y2" ]
   },
   axisLabelWidth : {
-    type : "int",
+    type : "int"
     // scope : [ "global", "x", "y", "y2" ]
   },
   axisLineColor : {
@@ -88,7 +88,7 @@ var opts = {
     scope : [ "global", "x", "y", "y2" ]
   },
   axisTickSize : {
-    type : "int",
+    type : "int"
     // scope : [ "global", "x", "y", "y2" ]
   },
   clickCallback : {

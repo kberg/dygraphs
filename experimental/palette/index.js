@@ -69,7 +69,7 @@ Index.draw = function(element, data, options) {
   
   // These don't work yet.
   g.updateOptions({
-    labelsDiv: 'status',
+    labelsDiv: 'status'
   });
 }
 
