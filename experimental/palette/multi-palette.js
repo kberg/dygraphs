@@ -24,6 +24,11 @@
  * @author konigsberg@google.com (Robert Konigsberg)
  */
 
+/**
+ * Create a new instance.
+ *
+ * @constructor
+ */
 function MultiPalette() {
   this.palettes = {};
   this.root = null;
