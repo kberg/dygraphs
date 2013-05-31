@@ -1582,8 +1582,8 @@ Dygraph.prototype.resetZoom = function() {
     if (dirtyY) {
       oldValueRanges = this.yAxisRanges();
       // TODO(danvk): this is pretty inefficient
-      var packed = this.gatherDatasets_(this.rolledSeries_, null);
-      var extremes = packed[1];
+      var datasets = this.gatherDatasets_(this.rolledSeries_, null);
+      var extremes = datasets.extremes;
 
       // this has the side-effect of modifying this.axes_.
       // this doesn't make much sense in this context, but it's convenient (we
@@ -1701,9 +1701,8 @@ Dygraph.prototype.findClosestRow = function(domX) {
     var points = sets[i];
     var len = points.length;
     for (var j = 0; j < len; j++) {
-      var point = points[j];
-      if (!Dygraph.isValidPoint(point, true)) continue;
-      var dist = Math.abs(point.canvasx - domX);
+      if (!Dygraph.isValidPoint2(points, j, true)) continue;
+      var dist = Math.abs(points.canvasxs[j] - domX);
       if (dist < minDistX) {
         minDistX = dist;
         setIdx = i;
@@ -2021,7 +2020,7 @@ Dygraph.prototype.setSelection = function(row, opt_seriesName, opt_locked) {
     for (var setIdx = 0; setIdx < this.layout_.points.length; ++setIdx) {
       var points = this.layout_.points[setIdx];
       if (row < points.length) {
-        var point = points[row];
+        var point = points.toObject(row);
         if (point.yval !== null) this.selPoints_.push(point);
       }
     }
@@ -2253,36 +2252,31 @@ Dygraph.prototype.predraw_ = function() {
   this.drawingTimeMs_ = (end - start);
 };
 
-// TODO(bhs): these loops are a hot-spot for high-point-count charts. In fact,
-// on chrome+linux, they are 6 times more expensive than iterating through the
-// points and drawing the lines. The brunt of the cost comes from allocating
-// the |point| structures.
 Dygraph.seriesToPoints_ = function(series, bars, setName, boundaryIdStart) {
-  var points = [];
+  var points = new DygraphPoints(series.length);
   for (var i = 0; i < series.length; ++i) {
     var item = series[i];
     var yraw = bars ? item[1][0] : item[1];
     var yval = yraw === null ? null : DygraphLayout.parseFloat_(yraw);
-    var point = {
-      x: NaN,
-      y: NaN,
-      xval: DygraphLayout.parseFloat_(item[0]),
-      yval: yval,
-      name: setName,  // TODO(danvk): is this really necessary?
-      idx: i + boundaryIdStart
-    };
+    points.setBasicData(
+      NaN, // x
+      NaN, // y
+      DygraphLayout.parseFloat_(item[0]), // xval
+      yval, // yval
+      setName, name, // setName
+      i + boundaryIdStart); // idx
 
     if (bars) {
-      point.y_top = NaN,
-      point.y_bottom = NaN,
-      point.yval_minus = DygraphLayout.parseFloat_(item[1][1]);
-      point.yval_plus = DygraphLayout.parseFloat_(item[1][2]);
+      points.setBars(
+        NaN, // yTop
+        NaN, //yBottom
+        DygraphLayout.parseFloat_(item[1][1]), // yvalMinus
+        DygraphLayout.parseFloat_(item[1][2])); // yvalPlus
     }
-    points.push(point);
+    points.next();
   }
   return points;
 };
-
 
 Dygraph.stackPoints_ = function(points, cumulative_y, seriesExtremes) {
   var isStackableVal = function(val) {
@@ -2290,45 +2284,44 @@ Dygraph.stackPoints_ = function(points, cumulative_y, seriesExtremes) {
   };
 
   var last_x = null;
-  var prevPoint = null;
-  var nextPoint = null;
+  var prevPointIdx = -1;
   var nextPointIdx = -1;
 
-  function updateNextPoint(idx) {
+  function updateNextPointIdx(idx) {
     // Find the next stackable point starting from the given index.
-    if (nextPointIdx >= idx) return;
+    if (nextPointIdx >= idx) {
+      return;
+    }
     for (var j = idx; j < points.length; ++j) {
-      nextPoint = null;
-      if (isStackableVal(points[j].yval)) {
+      nextPointIdx = -1; // KONIGSBERG: is this necessary?
+      if (isStackableVal(points.yvals[j])) {
         nextPointIdx = j;
-        nextPoint = points[j];
         break;
       }
     }
   };
 
   for (var i = 0; i < points.length; ++i) {
-    var point = points[i];
-    var x = point.xval;
+    var x = points.xvals[i];
     if (cumulative_y[x] === undefined) {
       cumulative_y[x] = 0;
     }
 
-    var actual_y = point.yval;
+    var actual_y = points.yvals[i];
     if (isNaN(actual_y) || actual_y === null) {
       // Interpolate if possible.
-      updateNextPoint(i);
-      if (prevPoint && nextPoint) {
-        actual_y = prevPoint.yval + (nextPoint.yval - prevPoint.yval) * ((x - prevPoint.xval) / (nextPoint.xval - prevPoint.xval));
-      } else if (prevPoint) {
-        actual_y = prevPoint.yval;
-      } else if (nextPoint) {
-        actual_y = nextPoint.yval;
+      updateNextPointIdx(i);
+      if (prevPointIdx >= 0 && nextPointIdx >= 0) {
+        actual_y = points.yvals[prevPointIdx] + (points.yvals[nextPointIdx] - points.yvals[prevPointIdx]) * ((x - points.xvals[prevPointIdx]) / (points.xvals[nextPointIdx] - points.xvals[prevPointIdx]));
+      } else if (prevPointIdx >= 0) {
+        actual_y = points.yvals[prevPointIdx];
+      } else if (nextPointIdx >= 0) {
+        actual_y = points.yvals[nextPointIdx];
       } else {
         actual_y = 0;
       }
     } else {
-      prevPoint = point;
+      prevPointIdx = i;
     }
 
     var stacked_y = cumulative_y[x];
@@ -2339,7 +2332,7 @@ Dygraph.stackPoints_ = function(points, cumulative_y, seriesExtremes) {
     }
     last_x = x;
 
-    point.yval_stacked = stacked_y;
+    points.yvalStackeds[i] = stacked_y;
 
     if (stacked_y > seriesExtremes[1]) {
       seriesExtremes[1] = stacked_y;
@@ -2454,7 +2447,7 @@ Dygraph.prototype.gatherDatasets_ = function(rolledSeries, dateWindow) {
     points[i] = seriesPoints;
   }
 
-  return [ points, extremes, boundaryIds ];
+  return { points : points, extremes : extremes, boundaryIds: boundaryIds };
 };
 
 /**
@@ -2475,10 +2468,10 @@ Dygraph.prototype.drawGraph_ = function() {
   this.setColors_();
   this.attrs_.pointSize = 0.5 * this.attr_('highlightCircleSize');
 
-  var packed = this.gatherDatasets_(this.rolledSeries_, this.dateWindow_);
-  var points = packed[0];
-  var extremes = packed[1];
-  this.boundaryIds_ = packed[2];
+  var datasets = this.gatherDatasets_(this.rolledSeries_, this.dateWindow_);
+  var points = datasets.points;
+  var extremes = datasets.extremes;
+  this.boundaryIds_ = datasets.boundaryIds;
 
   this.setIndexByName_ = {};
   var labels = this.attr_("labels");

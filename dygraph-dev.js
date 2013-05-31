@@ -21,6 +21,7 @@
     "stacktrace.js",
     "dashed-canvas.js",
     "dygraph-options.js",
+    "dygraph-points.js",
     "dygraph-layout.js",
     "dygraph-canvas.js",
     "dygraph.js",

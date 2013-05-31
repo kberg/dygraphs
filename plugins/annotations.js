@@ -55,8 +55,10 @@ annotations.prototype.didDrawChart = function(e) {
   var g = e.dygraph;
 
   // Early out in the (common) case of zero annotations.
-  var points = g.layout_.annotated_points;
-  if (!points || points.length === 0) return;
+  var annotatedPoints = g.layout_.annotated_points;
+  if (annotatedPoints.length === 0) {
+    return;
+  }
 
   var containerDiv = e.canvas.parentNode;
   var annotationStyle = {
@@ -83,14 +85,20 @@ annotations.prototype.didDrawChart = function(e) {
   // x-coord to sum of previous annotation's heights (used for stacking).
   var xToUsedHeight = {};
 
-  for (var i = 0; i < points.length; i++) {
-    var p = points[i];
-    if (p.canvasx < area.x || p.canvasx > area.x + area.w ||
-        p.canvasy < area.y || p.canvasy > area.y + area.h) {
+  var points = g.layout_.points;
+
+  for (var i = 0; i < annotatedPoints.length; i++) {
+    var pointRef = annotatedPoints[i];
+    var setIdx = pointRef.setIdx;
+    var pointIdx = pointRef.pointIdx;
+    var canvasx = points[setIdx].canvasxs[pointIdx];
+    var canvasy = points[setIdx].canvasys[pointIdx];
+    if (canvasx < area.x || canvasx > area.x + area.w ||
+        canvasy < area.y || canvasy > area.y + area.h) {
       continue;
     }
 
-    var a = p.annotation;
+    var a = points[setIdx].annotations[pointIdx];
     var tick_height = 6;
     if (a.hasOwnProperty("tickHeight")) {
       tick_height = a.tickHeight;
@@ -117,10 +125,10 @@ annotations.prototype.didDrawChart = function(e) {
       img.width = width;
       img.height = height;
       div.appendChild(img);
-    } else if (p.annotation.hasOwnProperty('shortText')) {
-      div.appendChild(document.createTextNode(p.annotation.shortText));
+    } else if (a.hasOwnProperty('shortText')) {
+      div.appendChild(document.createTextNode(a.shortText));
     }
-    var left = p.canvasx - width / 2;
+    var left = canvasx - width / 2;
     div.style.left = left + "px";
     var divTop = 0;
     if (a.attachAtBottom) {
@@ -133,16 +141,18 @@ annotations.prototype.didDrawChart = function(e) {
       xToUsedHeight[left] += (tick_height + height);
       divTop = y;
     } else {
-      divTop = p.canvasy - height - tick_height;
+      divTop = canvasy - height - tick_height;
     }
     div.style.top = divTop + "px";
     div.style.width = width + "px";
     div.style.height = height + "px";
-    div.title = p.annotation.text;
-    div.style.color = g.colorsMap_[p.name];
-    div.style.borderColor = g.colorsMap_[p.name];
+    div.title = a.text;
+    var setName = points[setIdx].names[pointIdx];
+    div.style.color = g.colorsMap_[setName];
+    div.style.borderColor = g.colorsMap_[setName];
     a.div = div;
 
+    var p = points[setIdx].toObject(pointIdx);
     g.addEvent(div, 'click',
         bindEvt('clickHandler', 'annotationClickHandler', p, this));
     g.addEvent(div, 'mouseover',
@@ -160,12 +170,12 @@ annotations.prototype.didDrawChart = function(e) {
     ctx.strokeStyle = g.colorsMap_[p.name];
     ctx.beginPath();
     if (!a.attachAtBottom) {
-      ctx.moveTo(p.canvasx, p.canvasy);
-      ctx.lineTo(p.canvasx, p.canvasy - 2 - tick_height);
+      ctx.moveTo(canvasx, canvasy);
+      ctx.lineTo(canvasx, canvasy - 2 - tick_height);
     } else {
       var y = divTop + height;
-      ctx.moveTo(p.canvasx, y);
-      ctx.lineTo(p.canvasx, y + tick_height);
+      ctx.moveTo(canvasx, y);
+      ctx.lineTo(canvasx, y + tick_height);
     }
     ctx.closePath();
     ctx.stroke();

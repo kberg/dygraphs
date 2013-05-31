@@ -50,8 +50,8 @@ DygraphLayout.prototype.attr_ = function(name) {
   return this.dygraph_.attr_(name);
 };
 
-DygraphLayout.prototype.addPoints = function(setname, set_xy) {
-  this.points.push(set_xy);
+DygraphLayout.prototype.addPoints = function(setname, points) {
+  this.points.push(points);
   this.setNames.push(setname);
 };
 
@@ -224,32 +224,30 @@ DygraphLayout.prototype._evaluateLineCharts = function() {
     var logscale = this.dygraph_.attributes_.getForSeries("logscale", setName);
 
     for (var j = 0; j < points.length; j++) {
-      var point = points[j];
-
       // Range from 0-1 where 0 represents left and 1 represents right.
-      point.x = (point.xval - this.minxval) * this.xscale;
+      points.xs[j] = (points.xvals[j] - this.minxval) * this.xscale;
       // Range from 0-1 where 0 represents top and 1 represents bottom
-      var yval = point.yval;
+      var yval = points.yvals[j];
       if (isStacked) {
-        point.y_stacked = DygraphLayout._calcYNormal(
-            axis, point.yval_stacked, logscale);
+        points.yStackeds[j] = DygraphLayout._calcYNormal(
+            axis, points.yvalStackeds[j], logscale);
         if (yval !== null && !isNaN(yval)) {
-          yval = point.yval_stacked;
+          yval = points.yvalStackeds[j];
         }
       }
       if (yval === null) {
         yval = NaN;
         if (!connectSeparated) {
-          point.yval = NaN;
+          points.yvals[j] = NaN;
         }
       }
-      point.y = DygraphLayout._calcYNormal(axis, yval, logscale);
+      points.ys[j] = DygraphLayout._calcYNormal(axis, yval, logscale);
 
       if (hasBars) {
-        point.y_top = DygraphLayout._calcYNormal(
-            axis, yval - point.yval_minus, logscale);
-        point.y_bottom = DygraphLayout._calcYNormal(
-            axis, yval + point.yval_plus, logscale);
+        points.yTops[j] = DygraphLayout._calcYNormal(
+            axis, yval - points.yvalMinuss[j], logscale);
+        points.yBottoms[j] = DygraphLayout._calcYNormal(
+            axis, yval + points.yvalPluss[j], logscale);
       }
     }
   }
@@ -298,8 +296,9 @@ DygraphLayout.prototype._evaluateLineTicks = function() {
 DygraphLayout.prototype._evaluateAnnotations = function() {
   // Add the annotations to the point to which they belong.
   // Make a map from (setName, xval) to annotation for quick lookups.
-  var i;
+  var pointIdx;
   var annotations = {};
+  var i;
   for (i = 0; i < this.annotations.length; i++) {
     var a = this.annotations[i];
     annotations[a.xval + "," + a.series] = a;
@@ -315,12 +314,11 @@ DygraphLayout.prototype._evaluateAnnotations = function() {
   // TODO(antrob): loop through annotations not points.
   for (var setIdx = 0; setIdx < this.points.length; setIdx++) {
     var points = this.points[setIdx];
-    for (i = 0; i < points.length; i++) {
-      var p = points[i];
-      var k = p.xval + "," + p.name;
+    for (pointIdx = 0; pointIdx < points.length; pointIdx++) {
+      var k = points.xvals[pointIdx]+ "," + points.names[pointIdx];
       if (k in annotations) {
-        p.annotation = annotations[k];
-        this.annotated_points.push(p);
+        points.annotations[pointIdx] = annotations[k];
+        this.annotated_points.push({setIdx: setIdx, pointIdx: pointIdx});
       }
     }
   }

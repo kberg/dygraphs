@@ -428,6 +428,14 @@ Dygraph.isValidPoint = function(p, allowNaNY) {
   return true;
 };
 
+Dygraph.isValidPoint2 = function(points, idx, allowNaNY) {
+  if (points.yvals[idx] === null) return false;  // missing point
+  if (points.xs[idx] === null || points.xs[idx] === undefined) return false;
+  if (points.ys[idx] === null || points.ys[idx] === undefined) return false;
+  if (isNaN(points.xs[idx]) || (!allowNaNY && isNaN(points.ys[idx]))) return false;
+  return true;
+}
+
 /**
  * Number formatting function which mimicks the behavior of %g in printf, i.e.
  * either exponential or fixed format (without trailing 0s) is used depending on
