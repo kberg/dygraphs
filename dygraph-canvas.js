@@ -318,10 +318,18 @@ DygraphCanvasRenderer._drawSeries = function(e,
     } else {
       isIsolated = false;
       if (drawGapPoints || !prevCanvasX) {
-          // DO NOT SUBMIT: What's up with this historical use of iter? Save?
-        //iter.nextIdx_ = i;
-        //iter.next();
-        //nextCanvasY = iter.hasNext ? points.canvasys[iter.nextIdx_] : null;
+        // I would set idx = nextIdx at this point, but we need idx later on.
+        // But if we could set idx, then we would have fewer continues above.
+        var nextIdx = idx + 1;
+        while(nextIdx < points.length) {
+          if (connectSeparatedPoints && points.yvals[nextIdx] === null) {
+            nextIdx++;
+          } else {
+            break;
+          }
+        }
+
+        nextCanvasY = nextIdx < points.length ? points.canvasys[nextIdx] : null;
 
         var isNextCanvasYNullOrNaN = nextCanvasY === null ||
             nextCanvasY != nextCanvasY;
@@ -329,9 +337,8 @@ DygraphCanvasRenderer._drawSeries = function(e,
         if (drawGapPoints) {
           // Also consider a point to be "isolated" if it's adjacent to a
           // null point, excluding the graph edges.
-          // DO NOT SUBMIT: What's up with this historical use of iter? Save?
           if ((!first && !prevCanvasX) ||
-              (iter.hasNext && isNextCanvasYNullOrNaN)) {
+              (nextIdx < points.length && isNextCanvasYNullOrNaN)) {
             isIsolated = true;
           }
         }
@@ -575,7 +582,7 @@ DygraphCanvasRenderer._errorPlotter = function(e) {
   var points = e.points;
 
   var connectSeparatedPoints = g.getOption("connectSeparatedPoints");
-  var newYs = [];
+  var newYs;
 
   // setup graphics context
   var prevX = NaN;
@@ -595,7 +602,7 @@ DygraphCanvasRenderer._errorPlotter = function(e) {
   };
 
   var idx = -1;
-  while (idx < points.length -1) {
+  while (idx < points.length - 1) {
     idx++;
     if (connectSeparatedPoints && points.yvals[idx] === null) {
       continue;
@@ -609,8 +616,9 @@ DygraphCanvasRenderer._errorPlotter = function(e) {
     if (stepPlot) {
       prevY = points.ys[idx];
     }
-    newYs[0] = e.plotArea.h * points.yBottoms[idx] + e.plotArea.y;
-    newYs[1] = e.plotArea.h * points.yTops[idx] + e.plotArea.y;
+    newYs = [
+      e.plotArea.h * points.yBottoms[idx] + e.plotArea.y,
+      e.plotArea.h * points.yTops[idx] + e.plotArea.y];
     var canvasx = points.canvasxs[idx];
     if (!isNaN(prevX)) {
       if (stepPlot) {

@@ -625,7 +625,7 @@ CallbackTestCase.prototype.testDrawPointCallback_idx = function() {
     var indices = [];
 
     var g;
-    var callback = function(g, seriesName, canvasContext, cx, cy, color, pointSizeParam,idx) {
+    var callback = function(g, seriesName, canvasContext, cx, cy, color, pointSizeParam, idx) {
         indices.push(idx);
         Dygraph.Circles.DEFAULT.apply(this, arguments);
     };

@@ -65,11 +65,11 @@ DygraphPoints.prototype.setBasicData = function(x, y, xval, yval, name, idx) {
   this.idxs[this.offset] = idx;
 }
 
-DygraphPoints.prototype.setBars = function(yTop, yBottom, yvalPlus, yvalMinus) {
-  this.yTops[this.offset] = yTop;
-  this.yBottoms[this.offset] = yBottom;
-  this.yvalPluss[this.offset] = yvalPlus;
+DygraphPoints.prototype.setBars = function(yvalMinus, yvalPlus) {
   this.yvalMinuss[this.offset] = yvalMinus;
+  this.yvalPluss[this.offset] = yvalPlus;
+  this.yTops[this.offset] = NaN;
+  this.yBottoms[this.offset] = NaN;
 }
 
 DygraphPoints.prototype.toObject = function(idx) {

@@ -1725,18 +1725,16 @@ Dygraph.prototype.findClosestRow = function(domX) {
 Dygraph.prototype.findClosestPoint = function(domX, domY) {
   var minDist = Infinity;
   var idx = -1;
-  var dist, dx, dy, point, closestPoint, closestSeries;
-  for ( var setIdx = this.layout_.points.length - 1 ; setIdx >= 0 ; --setIdx ) {
+  var dist, dx, dy, point, closestSeries;
+  for (var setIdx = this.layout_.points.length - 1 ; setIdx >= 0 ; --setIdx ) {
     var points = this.layout_.points[setIdx];
     for (var i = 0; i < points.length; ++i) {
-      var point = points[i];
-      if (!Dygraph.isValidPoint(point)) continue;
-      dx = point.canvasx - domX;
-      dy = point.canvasy - domY;
+      if (!Dygraph.isValidPoint2(points, i)) continue;
+      dx = points.canvasxs[i] - domX;
+      dy = points.canvasys[i] - domY;
       dist = dx * dx + dy * dy;
       if (dist < minDist) {
         minDist = dist;
-        closestPoint = point;
         closestSeries = setIdx;
         idx = i;
       }
@@ -1746,7 +1744,7 @@ Dygraph.prototype.findClosestPoint = function(domX, domY) {
   return {
     row: idx + this.getLeftBoundary_(),
     seriesName: name,
-    point: closestPoint
+    point: points.toObject(idx) 
   };
 };
 
@@ -1766,37 +1764,37 @@ Dygraph.prototype.findStackedPoint = function(domX, domY) {
   var row = this.findClosestRow(domX);
   var boundary = this.getLeftBoundary_();
   var rowIdx = row - boundary;
-  var closestPoint, closestSeries;
+  var closestIdx, closestSeries;
   for (var setIdx = 0; setIdx < this.layout_.points.length; ++setIdx) {
     var points = this.layout_.points[setIdx];
     if (rowIdx >= points.length) continue;
-    var p1 = points[rowIdx];
-    if (!Dygraph.isValidPoint(p1)) continue;
-    var py = p1.canvasy;
-    if (domX > p1.canvasx && rowIdx + 1 < points.length) {
+    var p1idx = rowIdx;
+    if (!Dygraph.isValidPoint2(points, p1idx)) continue;
+    var py = points.canvasys[p1idx];
+    if (domX > points.canvasxs[p1idx] && rowIdx + 1 < points.length) {
       // interpolate series Y value using next point
-      var p2 = points[rowIdx + 1];
-      if (Dygraph.isValidPoint(p2)) {
-        var dx = p2.canvasx - p1.canvasx;
+      var p2idx = rowIdx + 1;
+      if (Dygraph.isValidPoint2(points, p2idx)) {
+        var dx = points.canvasxs[p2idx] - points.canvasxs[p1idx];
         if (dx > 0) {
-          var r = (domX - p1.canvasx) / dx;
-          py += r * (p2.canvasy - p1.canvasy);
+          var r = (domX - points.canvasxs[p1idx]) / dx;
+          py += r * (points.canvasys[p2idx] - points.canvasys[p1idx]);
         }
       }
-    } else if (domX < p1.canvasx && rowIdx > 0) {
+    } else if (domX < points.canvasxs[p1idx] && rowIdx > 0) {
       // interpolate series Y value using previous point
-      var p0 = points[rowIdx - 1];
-      if (Dygraph.isValidPoint(p0)) {
-        var dx = p1.canvasx - p0.canvasx;
+      var p0idx = rowIdx - 1;
+      if (Dygraph.isValidPoint2(points, p0idx)) {
+        var dx = points.canvasxs[p1idx] - points.canvasxs[p0idx];
         if (dx > 0) {
-          var r = (p1.canvasx - domX) / dx;
-          py += r * (p0.canvasy - p1.canvasy);
+          var r = (points.canvasxs[p1idx] - domX) / dx;
+          py += r * (points.canvasys[p0idx] - points.canvasys[p1idx]);
         }
       }
     }
     // Stop if the point (domX, py) is above this series' upper edge
     if (setIdx === 0 || py < domY) {
-      closestPoint = p1;
+      closestIdx = p1idx;
       closestSeries = setIdx;
     }
   }
@@ -1804,7 +1802,7 @@ Dygraph.prototype.findStackedPoint = function(domX, domY) {
   return {
     row: row,
     seriesName: name,
-    point: closestPoint
+    point: points.toObject(closestIdx)
   };
 };
 
@@ -2094,7 +2092,7 @@ Dygraph.prototype.getSelection = function() {
   for (var setIdx = 0; setIdx < this.layout_.points.length; setIdx++) {
     var points = this.layout_.points[setIdx];
     for (var row = 0; row < points.length; row++) {
-      if (points[row].x == this.selPoints_[0].x) {
+      if (points.xs[row] == this.selPoints_[0].x) {
         return row + this.getLeftBoundary_();
       }
     }
@@ -2267,13 +2265,11 @@ Dygraph.seriesToPoints_ = function(series, bars, setName, boundaryIdStart) {
       NaN, // y
       DygraphLayout.parseFloat_(item[0]), // xval
       yval, // yval
-      setName, name, // setName
+      setName, // setName
       i + boundaryIdStart); // idx
 
     if (bars) {
       points.setBars(
-        NaN, // yTop
-        NaN, //yBottom
         DygraphLayout.parseFloat_(item[1][1]), // yvalMinus
         DygraphLayout.parseFloat_(item[1][2])); // yvalPlus
     }
