@@ -1443,7 +1443,7 @@ Dygraph.prototype.createDragInterface_ = function() {
  * dots.
  *
  * @param {number} direction the direction of the zoom rectangle. Acceptable
- *     values are Dygraph.HORIZONTAL and Dygraph.VERTICAL.
+ *     values are Dygraph.HORIZONTAL, Dygraph.VERTICAL or the bitwise combination.
  * @param {number} startX The X position where the drag started, in canvas
  *     coordinates.
  * @param {number} endX The current X position of the drag, in canvas coords.
@@ -1470,6 +1470,9 @@ Dygraph.prototype.drawZoomRect_ = function(direction, startX, endX, startY,
   } else if (prevDirection == Dygraph.VERTICAL) {
     ctx.clearRect(this.layout_.getPlotArea().x, Math.min(startY, prevEndY),
                   this.layout_.getPlotArea().w, Math.abs(startY - prevEndY));
+  } else if (prevDirection == Dygraph.HORIZONTAL | Dygraph.VERTICAL) {
+    ctx.clearRect(Math.min(startX, prevEndX), Math.min(startY, prevEndY),
+                  Math.abs(startX - prevEndX), Math.abs(startY - prevEndY))
   }
 
   // Draw a light-grey rectangle to show the new viewing area
@@ -1484,6 +1487,12 @@ Dygraph.prototype.drawZoomRect_ = function(direction, startX, endX, startY,
       ctx.fillStyle = "rgba(128,128,128,0.33)";
       ctx.fillRect(this.layout_.getPlotArea().x, Math.min(startY, endY),
                    this.layout_.getPlotArea().w, Math.abs(endY - startY));
+    }
+  } else if (prevDirection == Dygraph.HORIZONTAL | Dygraph.VERTICAL) {
+    if (endX && startX && endY && startY) {
+      ctx.fillStyle = "rgba(128,128,128,0.33)";
+      ctx.fillRect(Math.min(startX, endX), Math.min(startY, endY),
+                   Math.abs(endX - startX), Math.abs(endY - startY));
     }
   }
 

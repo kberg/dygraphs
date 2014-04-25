@@ -253,8 +253,19 @@ Dygraph.Interaction.moveZoom = function(event, g, context) {
   var yDelta = Math.abs(context.dragStartY - context.dragEndY);
 
   // drag direction threshold for y axis is twice as large as x axis
-  context.dragDirection = (xDelta < yDelta / 2) ? Dygraph.VERTICAL : Dygraph.HORIZONTAL;
 
+  var threshold = 10;
+  context.dragDirection = 0;
+  if (xDelta > threshold) {
+    context.dragDirection |= Dygraph.HORIZONTAL;
+  }
+  if (yDelta > threshold) {
+    context.dragDirection |= Dygraph.VERTICAL;
+  }
+  if (context.dragDirection == 0) {
+    // Fall-through, though not ideal.
+    context.dragDirection = (xDelta < yDelta / 2) ? Dygraph.VERTICAL : Dygraph.HORIZONTAL;
+  }
   g.drawZoomRect_(
       context.dragDirection,
       context.dragStartX,
@@ -347,7 +358,16 @@ Dygraph.Interaction.endZoom = function(event, g, context) {
   // should be as well.
   // See http://code.google.com/p/dygraphs/issues/detail?id=280
   var plotArea = g.getArea();
-  if (regionWidth >= 10 && context.dragDirection == Dygraph.HORIZONTAL) {
+
+  var resizeThreshold = 10;
+  if (regionWidth < resizeThreshold && context.dragDirection & Dygraph.HORIZONTAL) {
+    context.dragDirection ^= Dygraph.HORIZONTAL;
+  }
+  if (regionHeight < resizeThreshold && context.dragDirection & Dygraph.VERTICAL) {
+    context.dragDirection ^= Dygraph.VERTICAL;
+  }
+
+  if (context.dragDirection & Dygraph.HORIZONTAL) {
     var left = Math.min(context.dragStartX, context.dragEndX),
         right = Math.max(context.dragStartX, context.dragEndX);
     left = Math.max(left, plotArea.x);
@@ -355,8 +375,9 @@ Dygraph.Interaction.endZoom = function(event, g, context) {
     if (left < right) {
       g.doZoomX_(left, right);
     }
-    context.cancelNextDblclick = true;
-  } else if (regionHeight >= 10 && context.dragDirection == Dygraph.VERTICAL) {
+    context.cancelNextDblclick = false;
+  }
+  if (context.dragDirection & Dygraph.VERTICAL) {
     var top = Math.min(context.dragStartY, context.dragEndY),
         bottom = Math.max(context.dragStartY, context.dragEndY);
     top = Math.max(top, plotArea.y);
@@ -364,8 +385,9 @@ Dygraph.Interaction.endZoom = function(event, g, context) {
     if (top < bottom) {
       g.doZoomY_(top, bottom);
     }
-    context.cancelNextDblclick = true;
-  } else {
+    context.cancelNextDblclick = false;
+  }
+  if (context.dragDirecton == 0) {
     if (context.zoomMoved) g.clearZoomRect_();
   }
   context.dragStartX = null;
