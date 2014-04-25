@@ -1462,44 +1462,123 @@ Dygraph.prototype.drawZoomRect_ = function(direction, startX, endX, startY,
                                            endY, prevDirection, prevEndX,
                                            prevEndY) {
   var ctx = this.canvas_ctx_;
+  var plotarea = this.layout_.getPlotArea();
 
   // Clean up from the previous rect if necessary
-  if (prevDirection == Dygraph.HORIZONTAL) {
-    ctx.clearRect(Math.min(startX, prevEndX), this.layout_.getPlotArea().y,
-                  Math.abs(startX - prevEndX), this.layout_.getPlotArea().h);
-  } else if (prevDirection == Dygraph.VERTICAL) {
-    ctx.clearRect(this.layout_.getPlotArea().x, Math.min(startY, prevEndY),
-                  this.layout_.getPlotArea().w, Math.abs(startY - prevEndY));
-  } else if (prevDirection == Dygraph.HORIZONTAL | Dygraph.VERTICAL) {
-    ctx.clearRect(Math.min(startX, prevEndX), Math.min(startY, prevEndY),
-                  Math.abs(startX - prevEndX), Math.abs(startY - prevEndY))
+  if (prevDirection != 0) {
+    ctx.clearRect(plotarea.x, plotarea.y,
+                  plotarea.w, plotarea.h);
   }
 
-  // Draw a light-grey rectangle to show the new viewing area
+  var leftX = Math.min(startX, endX);
+  var rightX = Math.max(startX, endX);
+  var topY = Math.min(startY, endY);
+  var bottomY = Math.max(startY, endY);
+
+  var drawRect = function(x0, y0, x1, y1) {
+    ctx.save();
+
+    ctx.fillStyle = "rgba(128,128,128,0.33)";
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);    
+
+    ctx.strokeStyle = "rgba(0,0,0,0.33)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x0, y1);
+    ctx.lineTo(x1, y1);
+    ctx.lineTo(x1, y0);
+    ctx.lineTo(x0, y0);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Draw a light-grey rectangle to show the new viewing area.
   if (direction == Dygraph.HORIZONTAL) {
     if (endX && startX) {
-      ctx.fillStyle = "rgba(128,128,128,0.33)";
-      ctx.fillRect(Math.min(startX, endX), this.layout_.getPlotArea().y,
-                   Math.abs(endX - startX), this.layout_.getPlotArea().h);
+      drawRect(leftX, plotarea.y, rightX, plotarea.h);
     }
   } else if (direction == Dygraph.VERTICAL) {
     if (endY && startY) {
-      ctx.fillStyle = "rgba(128,128,128,0.33)";
-      ctx.fillRect(this.layout_.getPlotArea().x, Math.min(startY, endY),
-                   this.layout_.getPlotArea().w, Math.abs(endY - startY));
+      drawRect(plotarea.x, topY, plotarea.w + plotarea.x, bottomY);
     }
   } else if (prevDirection == Dygraph.HORIZONTAL | Dygraph.VERTICAL) {
     if (endX && startX && endY && startY) {
-      ctx.fillStyle = "rgba(128,128,128,0.33)";
-      ctx.fillRect(Math.min(startX, endX), Math.min(startY, endY),
-                   Math.abs(endX - startX), Math.abs(endY - startY));
+      drawRect(leftX, topY, rightX, bottomY);
     }
   }
+
+  this.drawZoomMarker(ctx, direction, startX, endX, startY, endY);
 
   if (this.isUsingExcanvas_) {
     this.currentZoomRectArgs_ = [direction, startX, endX, startY, endY, 0, 0, 0];
   }
 };
+
+Dygraph.prototype.drawZoomMarker = function(ctx, direction, startX, endX, startY, endY) {
+  var markerWidth = 8;
+
+  ctx.save();
+  ctx.strokeStyle = "rgba(0,0,0,0.66)";
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  var drawLine = function(x0, y0, x1, y1) {
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+  }
+
+  // Draw the line between the end-points, but if it's pure horizontal or vertical
+  // draw a purely straight line.
+  drawLine(
+      startX, startY,
+      direction == Dygraph.VERTICAL ? startX : endX,
+      direction == Dygraph.HORIZONTAL ? startY : endY);
+
+  // Draw the caps to the lines. All the code below could be reduced, I'm sure.
+  if (direction == Dygraph.VERTICAL) {
+    drawLine(
+        startX - markerWidth, startY,
+        startX + markerWidth, startY);
+
+    drawLine(
+        startX - markerWidth, endY,
+        startX + markerWidth, endY);
+  }
+
+  if (direction == Dygraph.HORIZONTAL) {
+    drawLine(
+        startX, startY - markerWidth,
+        startX, startY + markerWidth);
+
+    drawLine(
+        endX, startY - markerWidth,
+        endX, startY + markerWidth);
+  }
+
+  var xDirection = (startX < endX) ? 1 : -1;
+  var yDirection = (startY < endY) ? 1 : -1;
+
+  if (direction == (Dygraph.HORIZONTAL | Dygraph.VERTICAL)) {
+    drawLine(
+        startX, startY,
+        startX, startY + (yDirection * markerWidth));
+    drawLine(
+        startX, startY,
+        startX + (xDirection * markerWidth), startY);
+
+    drawLine(
+        endX, endY,
+        endX, endY - (yDirection * markerWidth));
+    drawLine(
+        endX, endY,
+        endX - (xDirection * markerWidth), endY);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
 
 /**
  * Clear the zoom rectangle (and perform no zoom).
@@ -2212,8 +2291,6 @@ Dygraph.prototype.addXTicks_ = function() {
       this.width_,  // TODO(danvk): should be area.width
       xAxisOptionsView,
       this);
-  // var msg = 'ticker(' + range[0] + ', ' + range[1] + ', ' + this.width_ + ', ' + this.attr_('pixelsPerXLabel') + ') -> ' + JSON.stringify(xTicks);
-  // console.log(msg);
   this.layout_.setXTicks(xTicks);
 };
 
