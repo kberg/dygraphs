@@ -249,17 +249,19 @@ Dygraph.Interaction.moveZoom = function(event, g, context) {
   context.dragEndX = Dygraph.dragGetX_(event, context);
   context.dragEndY = Dygraph.dragGetY_(event, context);
 
+  Dygraph.Interaction.stickToEdges_(g, context);
+
   var xDelta = Math.abs(context.dragStartX - context.dragEndX);
   var yDelta = Math.abs(context.dragStartY - context.dragEndY);
 
   // drag direction threshold for y axis is twice as large as x axis
 
-  var threshold = 10;
+  var zoomThreshold = 10;
   context.dragDirection = 0;
-  if (xDelta > threshold) {
+  if (xDelta > zoomThreshold) {
     context.dragDirection |= Dygraph.HORIZONTAL;
   }
-  if (yDelta > threshold) {
+  if (yDelta > zoomThreshold) {
     context.dragDirection |= Dygraph.VERTICAL;
   }
   if (context.dragDirection == 0) {
@@ -281,6 +283,33 @@ Dygraph.Interaction.moveZoom = function(event, g, context) {
   context.prevDragDirection = context.dragDirection;
 };
 
+/*
+ * When the mouse is 16 pixels from any corner, stick to that corner.
+ */
+Dygraph.Interaction.stickToEdges_ = function(g, context) {
+    // Change the dragEndX and dragEndY to stick to edges.
+  var edgeStickiness = 16;
+  var plotArea = g.getArea();
+
+  // Stick to the left side if required.
+  if (Math.abs(context.dragEndX - plotArea.x) < edgeStickiness) {
+    context.dragEndX = plotArea.x;
+  }
+  // Stick to the right side if required.
+  var x1 = plotArea.x + plotArea.w;
+  if (Math.abs(context.dragEndX - x1) < edgeStickiness) {
+    context.dragEndX = x1;
+  }
+  // Stick to the top if required.
+  if (Math.abs(context.dragEndY - plotArea.y) < edgeStickiness) {
+    context.dragEndY = plotArea.y;
+  }
+  // Stick to the bottom if required.
+  var y1 = plotArea.y + plotArea.h;
+  if (Math.abs(context.dragEndY - y1) < edgeStickiness) {
+    context.dragEndY = y1;
+  }
+}
 /**
  * @param {Dygraph} g
  * @param {Event} event
@@ -346,6 +375,8 @@ Dygraph.Interaction.endZoom = function(event, g, context) {
   context.isZooming = false;
   context.dragEndX = Dygraph.dragGetX_(event, context);
   context.dragEndY = Dygraph.dragGetY_(event, context);
+  Dygraph.Interaction.stickToEdges_(g, context);
+
   var regionWidth = Math.abs(context.dragEndX - context.dragStartX);
   var regionHeight = Math.abs(context.dragEndY - context.dragStartY);
 
