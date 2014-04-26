@@ -20,6 +20,12 @@
  */
 Dygraph.Interaction = {};
 
+/*
+ * The minimum number of pixels a mouse must move (in both directions) to be treated
+ * as a resize operation. Otherwise, it's too close to a click operation.
+ */
+Dygraph.Interaction.RESIZE_THRESHOLD_ = 2;
+
 /**
  * Called in response to an interaction model operation that
  * should start the default panning behavior.
@@ -115,8 +121,7 @@ Dygraph.Interaction.startPan = function(event, g, context) {
  *     context.
  */
 Dygraph.Interaction.movePan = function(event, g, context) {
-  context.dragEndX = Dygraph.dragGetX_(event, context);
-  context.dragEndY = Dygraph.dragGetY_(event, context);
+  Dygraph.Interaction.populateContextFromEvent_(event, g, context);
 
   var minDate = context.initialLeftmostDate -
     (context.dragEndX - context.dragStartX) * context.xUnitsPerPixel;
@@ -188,16 +193,8 @@ Dygraph.Interaction.movePan = function(event, g, context) {
  *     context.
  */
 Dygraph.Interaction.endPan = function(event, g, context) {
-  context.dragEndX = Dygraph.dragGetX_(event, context);
-  context.dragEndY = Dygraph.dragGetY_(event, context);
-
-  var regionWidth = Math.abs(context.dragEndX - context.dragStartX);
-  var regionHeight = Math.abs(context.dragEndY - context.dragStartY);
-
-  if (regionWidth < 2 && regionHeight < 2 &&
-      g.lastx_ !== undefined && g.lastx_ != -1) {
-    Dygraph.Interaction.treatMouseOpAsClick(g, event, context);
-  }
+  Dygraph.Interaction.populateContextFromEvent_(event, g, context);
+  Dygraph.Interaction.conditionallyClick_(event, g, context);
 
   // TODO(konigsberg): mouseup should just delete the
   // context object, and mousedown should create a new one.
@@ -247,30 +244,25 @@ Dygraph.Interaction.startZoom = function(event, g, context) {
 Dygraph.Interaction.moveZoom = function(event, g, context) {
   g.graphDiv.style.cursor = 'none'
   context.zoomMoved = true;
-  context.dragEndX = Dygraph.dragGetX_(event, context);
-  context.dragEndY = Dygraph.dragGetY_(event, context);
-
-  Dygraph.Interaction.stickToEdges_(g, context);
-
-  var xDelta = Math.abs(context.dragStartX - context.dragEndX);
-  var yDelta = Math.abs(context.dragStartY - context.dragEndY);
+  Dygraph.Interaction.populateContextFromEvent_(event, g, context);
 
   // drag direction threshold for y axis is twice as large as x axis
 
   var zoomThreshold = 10;
   context.dragDirection = 0;
-  if (xDelta > zoomThreshold) {
+  if (context.stickyXDelta > zoomThreshold) {
     context.dragDirection |= Dygraph.HORIZONTAL;
   }
-  if (yDelta > zoomThreshold) {
+  if (context.stickyYDelta > zoomThreshold) {
     context.dragDirection |= Dygraph.VERTICAL;
   }
   if (context.dragDirection == 0) {
     // Fall-through, though not ideal.
-    context.dragDirection = (xDelta < yDelta / 2) ? Dygraph.VERTICAL : Dygraph.HORIZONTAL;
+    context.dragDirection = (context.stickyXDelta < context.stickyYDelta / 2) ? Dygraph.VERTICAL : Dygraph.HORIZONTAL;
   }
 
-  if (xDelta >= 2 || yDelta >= 2) {
+  if (context.stickyXDelta >= Dygraph.Interaction.RESIZE_THRESHOLD_ ||
+    context.stickyYDelta >= Dygraph.Interaction.RESIZE_THRESHOLD_) {
   g.drawZoomRect_(
       context.dragDirection,
       context.dragStartX,
@@ -282,37 +274,56 @@ Dygraph.Interaction.moveZoom = function(event, g, context) {
       context.prevEndY);    
   }
 
+  // I don't think prevEndX and prevEndY are necessary here or in the rectangle drag method.
   context.prevEndX = context.dragEndX;
   context.prevEndY = context.dragEndY;
   context.prevDragDirection = context.dragDirection;
 };
 
 /*
- * When the mouse is 16 pixels from any corner, stick to that corner.
+ * Populates the following fields in context:
+ *
+ * currentX, currentY: the actual X and Y cooridinates from the event.
+ * dragEndX, dragEndY: most of the time it's the same value as currentX and currentY, but
+ * is altered to stick the drag end points to the graph borders, making it easy to zoom up against the
+ * graph's edges.
+ * moveXDelta, moveYDelta: the number of pixels the mouse has moved from the original point.
+ * stickyXDelta, stickyYDelta: the number of pixels the mouse has moved from the original point, accounting
+ * for sticking to the edges.
  */
-Dygraph.Interaction.stickToEdges_ = function(g, context) {
-    // Change the dragEndX and dragEndY to stick to edges.
+Dygraph.Interaction.populateContextFromEvent_ = function(event, g, context) {
+  // Change the dragEndX and dragEndY to stick to edges.
   var edgeStickiness = 16;
+
   var plotArea = g.getArea();
 
-  // Stick to the left side if required.
-  if (Math.abs(context.dragEndX - plotArea.x) < edgeStickiness) {
+  context.currentX = Dygraph.dragGetX_(event, context);
+  context.currentY = Dygraph.dragGetY_(event, context);
+
+  // Stick to the left or right
+  if (Math.abs(context.currentX - plotArea.x) < edgeStickiness) {
     context.dragEndX = plotArea.x;
+  } else if (Math.abs(context.currentX - (plotArea.x + plotArea.w)) < edgeStickiness) {
+    context.dragEndX = plotArea.x + plotArea.w;
+  } else {
+    context.dragEndX = context.currentX;
   }
-  // Stick to the right side if required.
-  var x1 = plotArea.x + plotArea.w;
-  if (Math.abs(context.dragEndX - x1) < edgeStickiness) {
-    context.dragEndX = x1;
-  }
-  // Stick to the top if required.
-  if (Math.abs(context.dragEndY - plotArea.y) < edgeStickiness) {
+
+  // Stick to the top or bottom
+  if (Math.abs(context.currentY - plotArea.y) < edgeStickiness) {
     context.dragEndY = plotArea.y;
+  } else if (Math.abs(context.currentY - (plotArea.y + plotArea.h)) < edgeStickiness) {
+    context.dragEndY = plotArea.y + plotArea.h;
+  } else {
+    context.dragEndY = context.currentY;
   }
-  // Stick to the bottom if required.
-  var y1 = plotArea.y + plotArea.h;
-  if (Math.abs(context.dragEndY - y1) < edgeStickiness) {
-    context.dragEndY = y1;
-  }
+
+  // the move deltas are computed using currentX,Y instead of dragEndX,Y because
+  // the dragEndX,Y can be stick againt the edge.
+  context.moveXDelta = Math.abs(context.currentX - context.dragStartX);
+  context.moveYDelta = Math.abs(context.currentY - context.dragStartY);
+  context.stickyXDelta = Math.abs(context.dragEndX - context.dragStartX);
+  context.stickyYDelta = Math.abs(context.dragEndY - context.dragStartY);
 }
 
 /**
@@ -321,7 +332,7 @@ Dygraph.Interaction.stickToEdges_ = function(g, context) {
  * @param {Object} context
  */
 Dygraph.Interaction.treatMouseOpAsClick = function(g, event, context) {
-  if (event.metaKey) {
+  if (event.ctrlKey) {
     g.graphDiv.style.cursor = 'inherit';
     g.resetZoom();
     return;
@@ -383,28 +394,20 @@ Dygraph.Interaction.treatMouseOpAsClick = function(g, event, context) {
  */
 Dygraph.Interaction.endZoom = function(event, g, context) {
   context.isZooming = false;
-  context.dragEndX = Dygraph.dragGetX_(event, context);
-  context.dragEndY = Dygraph.dragGetY_(event, context);
-  Dygraph.Interaction.stickToEdges_(g, context);
-
-  var regionWidth = Math.abs(context.dragEndX - context.dragStartX);
-  var regionHeight = Math.abs(context.dragEndY - context.dragStartY);
-
-  if (regionWidth < 2 && regionHeight < 2 &&
-      g.lastx_ !== undefined && g.lastx_ != -1) {
-    Dygraph.Interaction.treatMouseOpAsClick(g, event, context);
-  }
+  Dygraph.Interaction.populateContextFromEvent_(event, g, context);
+  Dygraph.Interaction.conditionallyClick_(event, g, context);
 
   // The zoom rectangle is visibly clipped to the plot area, so its behavior
   // should be as well.
   // See http://code.google.com/p/dygraphs/issues/detail?id=280
   var plotArea = g.getArea();
 
-  var resizeThreshold = 2;
-  if (regionWidth < resizeThreshold && context.dragDirection & Dygraph.HORIZONTAL) {
+  if (context.moveXDelta < Dygraph.Interaction.RESIZE_THRESHOLD_ &&
+      context.dragDirection & Dygraph.HORIZONTAL) {
     context.dragDirection ^= Dygraph.HORIZONTAL;
   }
-  if (regionHeight < resizeThreshold && context.dragDirection & Dygraph.VERTICAL) {
+  if (context.moveYDelta < Dygraph.Interaction.RESIZE_THRESHOLD_ &&
+      context.dragDirection & Dygraph.VERTICAL) {
     context.dragDirection ^= Dygraph.VERTICAL;
   }
 
@@ -433,6 +436,20 @@ Dygraph.Interaction.endZoom = function(event, g, context) {
   }
   context.dragStartX = null;
   context.dragStartY = null;
+};
+
+/*
+ * Conditionally call treatMouseOpAsClick when the mouse moved less than two pixels.
+ */
+Dygraph.Interaction.conditionallyClick_ = function(event, g, context) {
+  if (context.moveXDelta < Dygraph.Interaction.RESIZE_THRESHOLD_ &&
+      context.moveYDelta < Dygraph.Interaction.RESIZE_THRESHOLD_ &&
+      g.lastx_ !== undefined && g.lastx_ != -1) {
+    // Why does this have different parameter order from these methods?
+    Dygraph.Interaction.treatMouseOpAsClick(g, event, context);
+    return true;
+  }
+  return false;
 };
 
 /**
@@ -689,6 +706,11 @@ Dygraph.Interaction.defaultModel = {
       return;
     }
     g.resetZoom();
+  },
+
+  contextmenu: function(event, g, context) {
+    event.preventDefault();
+    return false;
   }
 };
 
@@ -708,16 +730,8 @@ Dygraph.Interaction.nonInteractiveModel_ = {
     context.initializeMouseDown(event, g, context);
   },
   mouseup: function(event, g, context) {
-    // TODO(danvk): this logic is repeated in Dygraph.Interaction.endZoom
-    context.dragEndX = Dygraph.dragGetX_(event, context);
-    context.dragEndY = Dygraph.dragGetY_(event, context);
-    var regionWidth = Math.abs(context.dragEndX - context.dragStartX);
-    var regionHeight = Math.abs(context.dragEndY - context.dragStartY);
-
-    if (regionWidth < 2 && regionHeight < 2 &&
-        g.lastx_ !== undefined && g.lastx_ != -1) {
-      Dygraph.Interaction.treatMouseOpAsClick(g, event, context);
-    }
+    Dygraph.Interaction.populateContextFromEvent_(event, g, context);
+    Dygraph.Interaction.conditionallyClick_(event, g, context);
   }
 };
 

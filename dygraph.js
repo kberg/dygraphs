@@ -1435,15 +1435,15 @@ Dygraph.prototype.createDragInterface_ = function() {
 
   var keydownHandler = function(event) {
     if ((event.shiftKey || event.altKey) && !context.isZooming) {
-      g.graphDiv.style.cursor = 'move';
+      self.graphDiv.style.cursor = 'move';
     }
-    if (event.metaKey && !context.isZooming && !context.isPanning) {
-      g.graphDiv.style.cursor = '-webkit-zoom-out';
+    if (event.ctrlKey && !context.isZooming && !context.isPanning) {
+      self.graphDiv.style.cursor = '-webkit-zoom-out';
     }
   }
   var keyupHandler = function(event) {
     if (!context.isPanning) {
-      g.graphDiv.style.cursor = 'inherit';
+      self.graphDiv.style.cursor = 'inherit';
     }
   }
   this.addAndTrackEvent(document, 'mouseup', mouseUpHandler);
@@ -1497,7 +1497,7 @@ Dygraph.prototype.drawZoomRect_ = function(direction, startX, endX, startY,
     ctx.fillRect(x0, y0, x1 - x0, y1 - y0);    
 
     ctx.strokeStyle = "rgba(0,0,0,0.33)";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 0;
     ctx.setLineDash([4, 4]);
     ctx.beginPath();
     ctx.moveTo(x0, y0);
