@@ -1497,15 +1497,15 @@ Dygraph.prototype.drawZoomRect_ = function(direction, startX, endX, startY,
 
   // Draw a light-grey rectangle to show the new viewing area.
   if (direction == Dygraph.HORIZONTAL) {
-    if (endX && startX) {
+    if (endX != null && startX != null) {
       drawRect(leftX, plotarea.y, rightX, plotarea.h);
     }
   } else if (direction == Dygraph.VERTICAL) {
-    if (endY && startY) {
+    if (endY != null && startY != null) {
       drawRect(plotarea.x, topY, plotarea.w + plotarea.x, bottomY);
     }
   } else if (prevDirection == Dygraph.HORIZONTAL | Dygraph.VERTICAL) {
-    if (endX && startX && endY && startY) {
+    if (endX != null && startX != null && endY != null && startY != null) {
       drawRect(leftX, topY, rightX, bottomY);
     }
   }
@@ -1521,7 +1521,7 @@ Dygraph.prototype.drawZoomMarker = function(ctx, direction, startX, endX, startY
   var markerWidth = 8;
 
   ctx.save();
-  ctx.strokeStyle = "rgba(0,0,0,0.66)";
+  ctx.strokeStyle = "rgba(0,0,0,0.5)";
   ctx.lineWidth = 2;
 
   ctx.beginPath();
@@ -1537,46 +1537,64 @@ Dygraph.prototype.drawZoomMarker = function(ctx, direction, startX, endX, startY
       direction == Dygraph.VERTICAL ? startX : endX,
       direction == Dygraph.HORIZONTAL ? startY : endY);
 
-  // Draw the caps to the lines. All the code below could be reduced, I'm sure.
-  if (direction == Dygraph.VERTICAL) {
-    drawLine(
-        startX - markerWidth, startY,
-        startX + markerWidth, startY);
+  var drawCaps = false;
+  if (drawCaps) {
+    // Draw the caps to the lines. All the code below could be reduced, I'm sure.
+    if (direction == Dygraph.VERTICAL) {
+      drawLine(
+          startX - markerWidth, startY,
+          startX + markerWidth, startY);
 
-    drawLine(
-        startX - markerWidth, endY,
-        startX + markerWidth, endY);
-  }
+      drawLine(
+          startX - markerWidth, endY,
+          startX + markerWidth, endY);
+    }
 
-  if (direction == Dygraph.HORIZONTAL) {
-    drawLine(
-        startX, startY - markerWidth,
-        startX, startY + markerWidth);
+    if (direction == Dygraph.HORIZONTAL) {
+      drawLine(
+          startX, startY - markerWidth,
+          startX, startY + markerWidth);
 
-    drawLine(
-        endX, startY - markerWidth,
-        endX, startY + markerWidth);
-  }
+      drawLine(
+          endX, startY - markerWidth,
+          endX, startY + markerWidth);
+    }
 
-  var xDirection = (startX < endX) ? 1 : -1;
-  var yDirection = (startY < endY) ? 1 : -1;
+    var xDirection = (startX < endX) ? 1 : -1;
+    var yDirection = (startY < endY) ? 1 : -1;
 
-  if (direction == (Dygraph.HORIZONTAL | Dygraph.VERTICAL)) {
-    drawLine(
-        startX, startY,
-        startX, startY + (yDirection * markerWidth));
-    drawLine(
-        startX, startY,
-        startX + (xDirection * markerWidth), startY);
+    if (direction == (Dygraph.HORIZONTAL | Dygraph.VERTICAL)) {
+      drawLine(
+          startX, startY,
+          startX, startY + (yDirection * markerWidth));
+      drawLine(
+          startX, startY,
+          startX + (xDirection * markerWidth), startY);
 
-    drawLine(
-        endX, endY,
-        endX, endY - (yDirection * markerWidth));
-    drawLine(
-        endX, endY,
-        endX - (xDirection * markerWidth), endY);
+      drawLine(
+          endX, endY,
+          endX, endY - (yDirection * markerWidth));
+      drawLine(
+          endX, endY,
+          endX - (xDirection * markerWidth), endY);
+
+    }
   }
   ctx.stroke();
+
+  if (!drawCaps) {  
+    ctx.beginPath();
+    ctx.arc(startX, startY, 4, 0, 2 * Math.PI, false);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(
+      direction == Dygraph.VERTICAL ? startX : endX,
+      direction == Dygraph.HORIZONTAL ? startY : endY,
+      4, 0, 2 * Math.PI, false);
+    ctx.stroke();
+  }
+
   ctx.restore();
 }
 
