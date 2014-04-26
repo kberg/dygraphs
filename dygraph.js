@@ -1433,7 +1433,22 @@ Dygraph.prototype.createDragInterface_ = function() {
     context.tarp.uncover();
   };
 
+  var keydownHandler = function(event) {
+    if ((event.shiftKey || event.altKey) && !context.isZooming) {
+      g.graphDiv.style.cursor = 'move';
+    }
+    if (event.metaKey && !context.isZooming && !context.isPanning) {
+      g.graphDiv.style.cursor = '-webkit-zoom-out';
+    }
+  }
+  var keyupHandler = function(event) {
+    if (!context.isPanning) {
+      g.graphDiv.style.cursor = 'inherit';
+    }
+  }
   this.addAndTrackEvent(document, 'mouseup', mouseUpHandler);
+  this.addAndTrackEvent(document, 'keydown', keydownHandler);
+  this.addAndTrackEvent(document, 'keyup', keyupHandler);
 };
 
 /**

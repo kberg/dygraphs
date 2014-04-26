@@ -245,6 +245,7 @@ Dygraph.Interaction.startZoom = function(event, g, context) {
  *     context.
  */
 Dygraph.Interaction.moveZoom = function(event, g, context) {
+  g.graphDiv.style.cursor = 'none'
   context.zoomMoved = true;
   context.dragEndX = Dygraph.dragGetX_(event, context);
   context.dragEndY = Dygraph.dragGetY_(event, context);
@@ -316,6 +317,11 @@ Dygraph.Interaction.stickToEdges_ = function(g, context) {
  * @param {Object} context
  */
 Dygraph.Interaction.treatMouseOpAsClick = function(g, event, context) {
+  if (event.metaKey) {
+    g.graphDiv.style.cursor = 'inherit';
+    g.resetZoom();
+    return;
+  }
   var clickCallback = g.getFunctionOption('clickCallback');
   var pointClickCallback = g.getFunctionOption('pointClickCallback');
 
@@ -647,6 +653,7 @@ Dygraph.Interaction.defaultModel = {
     } else if (context.isPanning) {
       Dygraph.endPan(event, g, context);
     }
+    g.graphDiv.style.cursor = 'auto';
   },
 
   touchstart: function(event, g, context) {
