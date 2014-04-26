@@ -269,6 +269,8 @@ Dygraph.Interaction.moveZoom = function(event, g, context) {
     // Fall-through, though not ideal.
     context.dragDirection = (xDelta < yDelta / 2) ? Dygraph.VERTICAL : Dygraph.HORIZONTAL;
   }
+
+  if (xDelta >= 2 || yDelta >= 2) {
   g.drawZoomRect_(
       context.dragDirection,
       context.dragStartX,
@@ -277,7 +279,8 @@ Dygraph.Interaction.moveZoom = function(event, g, context) {
       context.dragEndY,
       context.prevDragDirection,
       context.prevEndX,
-      context.prevEndY);
+      context.prevEndY);    
+  }
 
   context.prevEndX = context.dragEndX;
   context.prevEndY = context.dragEndY;
@@ -311,6 +314,7 @@ Dygraph.Interaction.stickToEdges_ = function(g, context) {
     context.dragEndY = y1;
   }
 }
+
 /**
  * @param {Dygraph} g
  * @param {Event} event
@@ -396,7 +400,7 @@ Dygraph.Interaction.endZoom = function(event, g, context) {
   // See http://code.google.com/p/dygraphs/issues/detail?id=280
   var plotArea = g.getArea();
 
-  var resizeThreshold = 10;
+  var resizeThreshold = 2;
   if (regionWidth < resizeThreshold && context.dragDirection & Dygraph.HORIZONTAL) {
     context.dragDirection ^= Dygraph.HORIZONTAL;
   }
