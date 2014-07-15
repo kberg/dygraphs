@@ -40,3 +40,8 @@ clean-combined-test: clean
 
 lint:
 	@./lint.sh
+
+publish:
+	./generate-combined.sh
+	npm publish
+	git checkout dygraph-combined.js
